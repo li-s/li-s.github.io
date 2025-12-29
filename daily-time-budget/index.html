@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Time Budget v3</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --edit-mode: #f59e0b;
+            --edit-hover: #d97706;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --btn-sec-bg: transparent;
+            --btn-sec-hover: #f1f5f9;
+        }
+
+        /* Dark Mode Variables */
+        body.dark {
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --btn-sec-bg: #334155;
+            --btn-sec-hover: #475569;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        /* Header & Controls */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; }
+
+        .controls { display: flex; gap: 8px; }
+
+        .btn-icon {
+            background: var(--btn-sec-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .btn-icon:hover { background-color: var(--btn-sec-hover); }
+
+        .btn-secondary {
+            background-color: var(--btn-sec-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover { background-color: var(--btn-sec-hover); color: var(--text); }
+
+        /* Chart */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            text-align: center;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        /* Inputs */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        input {
+            padding: 12px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+        input[type="text"] { flex: 3; }
+        input[type="number"] { flex: 1; min-width: 60px; }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        
+        /* Edit Mode State */
+        .btn-primary.is-editing {
+            background-color: var(--edit-mode);
+        }
+        .btn-primary.is-editing:hover {
+            background-color: var(--edit-hover);
+        }
+
+        /* List */
+        .activity-list { list-style: none; padding: 0; margin: 0; }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-item:hover { background-color: rgba(0,0,0,0.02); }
+
+        .item-left { display: flex; align-items: center; gap: 12px; }
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        
+        .item-actions { display: flex; gap: 5px; align-items: center; }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            transition: 0.2s;
+        }
+        .action-btn:hover { background-color: var(--btn-sec-hover); color: var(--text); }
+        
+        .delete-btn { color: var(--danger); font-size: 0.9rem; }
+        .delete-btn:hover { background-color: #fef2f2; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-row">
+        <h1>Daily Budget</h1>
+        <div class="controls">
+            <button class="btn-icon" onclick="toggleTheme()" title="Toggle Dark Mode">◑</button>
+            <button class="btn-secondary" onclick="downloadData()">Save</button>
+            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Load</button>
+            <button class="btn-secondary" onclick="resetData()">Clear</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(this)" accept=".json">
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="timeChart"></canvas>
+    </div>
+
+    <div class="stats" id="statusText">Loading...</div>
+
+    <div class="input-group">
+        <input type="text" id="labelInput" placeholder="Activity (e.g. Work)" onkeypress="handleEnter(event)" />
+        <input type="number" id="hrsInput" placeholder="Hrs" min="0" max="24" onkeypress="handleEnter(event)" />
+        <input type="number" id="minsInput" placeholder="Mins" min="0" max="59" onkeypress="handleEnter(event)" />
+        
+        <button id="mainBtn" class="btn-primary" onclick="handleMainButton()">Add</button>
+        <button id="cancelBtn" class="btn-secondary" onclick="cancelEdit()" style="display:none;">✕</button>
+    </div>
+
+    <ul class="activity-list" id="activityList"></ul>
+</div>
+
+<script>
+    // --- STATE ---
+    let activities = [];
+    let editingId = null; // Tracks which ID we are editing
+    let colorIndex = 0;   // Ensures we rotate colors evenly even after deletes
+    const TOTAL_MINUTES = 24 * 60;
+    let myChart = null;
+    const STORAGE_KEY = 'dailyTimeBudget_v3';
+    
+    const palette = [
+        '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', 
+        '#ec4899', '#06b6d4', '#6366f1', '#14b8a6',
+        '#f43f5e', '#84cc16', '#eab308', '#d946ef'
+    ];
+
+    // --- HELPERS ---
+    function formatTime(minutes) {
+        const h = Math.floor(minutes / 60);
+        const m = Math.round(minutes % 60);
+        if (h > 0 && m > 0) return `${h}h ${m}m`;
+        if (h > 0) return `${h}h`;
+        return `${m}m`;
+    }
+
+    // --- CORE ---
+    function init() {
+        // Load Theme
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark');
+        }
+
+        initChart();
+        loadFromStorage();
+    }
+
+    function updateAll() {
+        updateChart();
+        renderList();
+        saveToStorage();
+    }
+
+    function handleMainButton() {
+        if (editingId) updateActivity();
+        else addActivity();
+    }
+
+    function addActivity() {
+        const label = document.getElementById('labelInput').value.trim();
+        const hrs = parseInt(document.getElementById('hrsInput').value) || 0;
+        const mins = parseInt(document.getElementById('minsInput').value) || 0;
+        const totalDurationMins = (hrs * 60) + mins;
+
+        if (!validateInput(label, totalDurationMins)) return;
+
+        // Assign a persistent color
+        const color = palette[colorIndex % palette.length];
+        colorIndex++; 
+
+        activities.push({ 
+            id: Date.now(), 
+            label, 
+            minutes: totalDurationMins, 
+            color: color 
+        });
+        
+        resetInputs();
+        updateAll();
+    }
+
+    function updateActivity() {
+        const index = activities.findIndex(a => a.id === editingId);
+        if (index === -1) return;
+
+        const label = document.getElementById('labelInput').value.trim();
+        const hrs = parseInt(document.getElementById('hrsInput').value) || 0;
+        const mins = parseInt(document.getElementById('minsInput').value) || 0;
+        const totalDurationMins = (hrs * 60) + mins;
+
+        // Validation for Update (subtract old value, add new value)
+        const oldMins = activities[index].minutes;
+        const currentUsed = activities.reduce((acc, curr) => acc + curr.minutes, 0);
+        const projectedTotal = (currentUsed - oldMins) + totalDurationMins;
+
+        if (!label) { alert("Name required"); return; }
+        if (totalDurationMins <= 0) { alert("Time must be > 0"); return; }
+        if (projectedTotal > TOTAL_MINUTES) {
+            alert(`Over budget! Limit is ${formatTime(TOTAL_MINUTES - (currentUsed - oldMins))}`);
+            return;
+        }
+
+        // Update data but KEEP the ID and COLOR
+        activities[index].label = label;
+        activities[index].minutes = totalDurationMins;
+
+        cancelEdit(); // Exits edit mode
+        updateAll();
+    }
+
+    function validateInput(label, duration) {
+        if (!label) { alert("Please enter an activity name."); return false; }
+        if (duration <= 0) { alert("Duration must be greater than 0."); return false; }
+        
+        const currentUsed = activities.reduce((acc, curr) => acc + curr.minutes, 0);
+        if (currentUsed + duration > TOTAL_MINUTES) {
+            alert(`Not enough time! You have ${formatTime(TOTAL_MINUTES - currentUsed)} left.`);
+            return false;
+        }
+        return true;
+    }
+
+    // --- ACTIONS ---
+
+    function editActivity(id) {
+        const item = activities.find(a => a.id === id);
+        if(!item) return;
+
+        // Populate fields
+        document.getElementById('labelInput').value = item.label;
+        document.getElementById('hrsInput').value = Math.floor(item.minutes / 60);
+        document.getElementById('minsInput').value = item.minutes % 60;
+
+        // UI Changes
+        editingId = id;
+        const btn = document.getElementById('mainBtn');
+        btn.innerText = "Update";
+        btn.classList.add('is-editing');
+        document.getElementById('cancelBtn').style.display = "block";
+        document.getElementById('labelInput').focus();
+    }
+
+    function cancelEdit() {
+        editingId = null;
+        resetInputs();
+        const btn = document.getElementById('mainBtn');
+        btn.innerText = "Add";
+        btn.classList.remove('is-editing');
+        document.getElementById('cancelBtn').style.display = "none";
+    }
+
+    function removeActivity(id) {
+        if(editingId === id) cancelEdit();
+        activities = activities.filter(a => a.id !== id);
+        updateAll();
+    }
+
+    function moveActivity(index, direction) {
+        if (direction === -1 && index > 0) {
+            // Move Up
+            [activities[index], activities[index - 1]] = [activities[index - 1], activities[index]];
+        } else if (direction === 1 && index < activities.length - 1) {
+            // Move Down
+            [activities[index], activities[index + 1]] = [activities[index + 1], activities[index]];
+        }
+        updateAll();
+    }
+
+    function resetInputs() {
+        document.getElementById('labelInput').value = '';
+        document.getElementById('hrsInput').value = '';
+        document.getElementById('minsInput').value = '';
+    }
+
+    // --- VISUALIZATION ---
+
+    function initChart() {
+        const ctx = document.getElementById('timeChart').getContext('2d');
+        // Check for dark mode to set border color
+        const isDark = document.body.classList.contains('dark');
+        
+        myChart = new Chart(ctx, {
+            type: 'pie',
+            data: { labels: [], datasets: [{ data: [], borderWidth: 2, borderColor: isDark ? '#1e293b' : '#ffffff' }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const rawMins = context.raw;
+                                return ` ${context.label}: ${formatTime(rawMins)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateChart() {
+        const usedMins = activities.reduce((acc, curr) => acc + curr.minutes, 0);
+        const freeMins = TOTAL_MINUTES - usedMins;
+
+        const labels = activities.map(a => a.label);
+        const data = activities.map(a => a.minutes);
+        const colors = activities.map(a => a.color); // Use stored color
+
+        if (freeMins > 0) {
+            labels.push('Free Time');
+            data.push(freeMins);
+            // Gray color adapts to Dark Mode
+            const isDark = document.body.classList.contains('dark');
+            colors.push(isDark ? '#334155' : '#e2e8f0');
+        }
+
+        // Update Chart Borders based on theme
+        const isDark = document.body.classList.contains('dark');
+        myChart.data.datasets[0].borderColor = isDark ? '#1e293b' : '#ffffff';
+
+        myChart.data.labels = labels;
+        myChart.data.datasets[0].data = data;
+        myChart.data.datasets[0].backgroundColor = colors;
+        myChart.update();
+
+        document.getElementById('statusText').innerText = 
+            `${formatTime(usedMins)} Planned  |  ${formatTime(freeMins)} Free`;
+    }
+
+    function renderList() {
+        const list = document.getElementById('activityList');
+        list.innerHTML = '';
+
+        activities.forEach((act, index) => {
+            const li = document.createElement('li');
+            li.className = 'activity-item';
+            
+            // Disable Up/Down buttons if at boundaries
+            const upDisabled = index === 0 ? 'visibility:hidden' : '';
+            const downDisabled = index === activities.length - 1 ? 'visibility:hidden' : '';
+
+            li.innerHTML = `
+                <div class="item-left">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <button class="action-btn" onclick="moveActivity(${index}, -1)" style="font-size:0.7rem; padding:0; ${upDisabled}">▲</button>
+                        <button class="action-btn" onclick="moveActivity(${index}, 1)" style="font-size:0.7rem; padding:0; ${downDisabled}">▼</button>
+                    </div>
+                    <span class="color-dot" style="background-color: ${act.color}"></span>
+                    <span><strong>${act.label}</strong>: ${formatTime(act.minutes)}</span>
+                </div>
+                <div class="item-actions">
+                    <button class="action-btn" title="Edit" onclick="editActivity(${act.id})">✎</button>
+                    <button class="action-btn delete-btn" title="Remove" onclick="removeActivity(${act.id})">🗑</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // --- SYSTEM ---
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark');
+        const isDark = document.body.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateChart(); // Redraw chart to fix border colors
+    }
+
+    function saveToStorage() {
+        const data = {
+            activities: activities,
+            colorIndex: colorIndex
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadFromStorage() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                // Handle legacy format vs new format
+                if (Array.isArray(parsed)) {
+                    activities = parsed; // Old format
+                } else {
+                    activities = parsed.activities || [];
+                    colorIndex = parsed.colorIndex || 0;
+                }
+            } catch (e) { console.error("Data Load Error"); }
+        }
+        updateAll();
+    }
+
+    function downloadData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({activities, colorIndex}));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = "daily_budget_v3.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function importData(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                // Support both simple array (v2) and object (v3)
+                let newActivities = [];
+                let newColorIndex = 0;
+
+                if (Array.isArray(json)) newActivities = json;
+                else if (json.activities) {
+                    newActivities = json.activities;
+                    newColorIndex = json.colorIndex || 0;
+                }
+
+                if(newActivities.length >= 0) {
+                    if(confirm("Overwrite current list?")) {
+                        activities = newActivities;
+                        colorIndex = newColorIndex;
+                        
+                        // Patch for older files: ensure everyone has a color
+                        activities.forEach(a => {
+                            if (!a.color) {
+                                a.color = palette[colorIndex % palette.length];
+                                colorIndex++;
+                            }
+                            if (!a.id) a.id = Date.now() + Math.random(); 
+                        });
+
+                        updateAll();
+                    }
+                }
+            } catch(err) { alert("Error reading file"); }
+            input.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    function resetData() {
+        if(confirm("Reset everything?")) {
+            activities = [];
+            colorIndex = 0;
+            updateAll();
+        }
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') handleMainButton();
+    }
+
+    init();
+</script>
+
+</body>
+</html>

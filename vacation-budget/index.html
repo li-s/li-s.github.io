@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vacation Budgeter Pro v2</title>
+    <style>
+        :root {
+            /* Light Mode (Default) */
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --sub-text: #555;
+            --input-bg: #fff;
+            --input-border: #ddd;
+            
+            /* Accents */
+            --green: #2ecc71;
+            --orange: #f39c12;
+            --red: #e74c3c;
+            --dark-red: #c0392b;
+            --gray-light: #e0e0e0;
+            --blue: #3498db;
+            --active-tab: #2c3e50;
+            --inactive-tab: #ecf0f1;
+            --shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        /* DARK MODE OVERRIDES */
+        body.dark-mode {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --sub-text: #aaa;
+            --input-bg: #2c2c2c;
+            --input-border: #444;
+            --active-tab: #3498db;
+            --inactive-tab: #333;
+            --shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            display: flex; 
+            justify-content: center; 
+            padding: 20px; 
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container { 
+            background: var(--card-bg); 
+            width: 100%; 
+            max-width: 500px; 
+            padding: 2rem; 
+            border-radius: 20px; 
+            box-shadow: var(--shadow); 
+            position: relative;
+            transition: background 0.3s;
+        }
+        
+        /* HEADER & TOGGLE */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        h2 { margin: 0; font-weight: 700; color: var(--text-color); }
+        .theme-toggle { background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-color); }
+
+        /* INPUTS */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.85rem; color: var(--sub-text); }
+        input, select { 
+            width: 100%; padding: 12px; 
+            border: 1px solid var(--input-border); 
+            border-radius: 8px; 
+            font-size: 1rem; 
+            background: var(--input-bg); 
+            color: var(--text-color);
+            transition: border 0.2s, background 0.2s; 
+        }
+        input:focus, select:focus { border-color: var(--blue); outline: none; }
+
+        /* TABS */
+        .tabs-wrapper { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; margin-bottom: 15px; scrollbar-width: none; }
+        .tabs-wrapper::-webkit-scrollbar { display: none; }
+        .tab-btn { white-space: nowrap; padding: 8px 16px; border-radius: 20px; border: none; background: var(--inactive-tab); color: var(--sub-text); font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .tab-btn.active { background: var(--active-tab); color: #fff; }
+        .tab-add-btn { background: none; border: 2px dashed #777; color: #777; width: 35px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+        /* STATS & GAUGE */
+        .trip-controls-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .current-trip-name { font-size: 1.2rem; font-weight: 700; }
+        .trip-stats { display: flex; justify-content: space-between; background: var(--bg-color); border: 1px solid var(--input-border); padding: 10px 15px; border-radius: 12px; margin-bottom: 20px; cursor: pointer;}
+        .stat-item { font-size: 0.9rem; font-weight: 600; color: var(--sub-text); }
+        .stat-highlight { color: var(--blue); }
+
+        .gauge-wrapper { position: relative; width: 200px; height: 100px; margin: 10px auto; overflow: hidden; }
+        .gauge-container-svg { width: 100%; height: auto; display: block; margin: 0 auto; }
+        .gauge-bg { fill: none; stroke: var(--input-border); stroke-width: 10; stroke-linecap: round; }
+        .gauge-fill { fill: none; stroke: var(--green); stroke-width: 10; stroke-linecap: round; transition: stroke-dasharray 0.4s, stroke 0.3s; }
+        .gauge-ghost { fill: none; stroke: var(--orange); stroke-width: 10; stroke-linecap: round; opacity: 0.5; transition: stroke-dasharray 0.4s; }
+        .gauge-text-overlay { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; }
+        .gauge-percent { font-size: 2rem; font-weight: 800; color: var(--text-color); line-height: 1; }
+        .gauge-subtext { font-size: 0.8rem; color: var(--sub-text); margin-top: 5px; }
+
+        /* EXPENSE LIST */
+        .expense-list { list-style: none; padding: 0; margin-top: 20px; border-top: 1px solid var(--input-border); }
+        .expense-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; border-bottom: 1px solid var(--input-border); cursor: pointer; }
+        .expense-item:hover { background-color: rgba(0,0,0,0.03); }
+        .expense-item.editing { background-color: rgba(52, 152, 219, 0.1); border-left: 3px solid var(--blue); }
+        
+        .expense-name { font-weight: 500; font-size: 0.95rem; display: block; }
+        .expense-note { display: block; font-size: 0.75rem; color: var(--sub-text); font-style: italic; margin-top: 2px; }
+        
+        .delete-btn { color: #bbb; background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0 0 0 10px; }
+        .delete-btn:hover { color: var(--red); }
+
+        /* BUTTONS */
+        .btn-primary { width: 100%; padding: 14px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+        .btn-primary.update-mode { background: var(--orange); }
+        .btn-primary:hover { opacity: 0.9; }
+        
+        .cancel-edit { display: none; text-align: center; margin-top: 10px; color: var(--red); cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 30px; }
+        .btn-secondary { flex: 1; padding: 10px; background: var(--card-bg); color: var(--sub-text); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer; }
+
+        #setup-section { display: block; }
+        #dashboard-section { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-row">
+        <h2 id="mainHeader">Vacation Budget</h2>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌓</button>
+    </div>
+
+    <div id="setup-section">
+        <div class="input-group">
+            <label>Annual Net Salary ($)</label>
+            <input type="number" id="salaryInput" placeholder="e.g. 50000">
+        </div>
+        <div class="input-group">
+            <label>Vacation Budget (%)</label>
+            <input type="number" id="percentInput" placeholder="e.g. 5">
+        </div>
+        <button class="btn-primary" onclick="startPlanning()">Create Budget</button>
+        <div style="margin-top: 30px; text-align: center;">
+            <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">📂 Upload Save File</button>
+        </div>
+    </div>
+
+    <div id="dashboard-section">
+        
+        <div class="tabs-wrapper" id="tabsContainer"></div>
+
+        <div class="trip-controls-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="current-trip-name" id="displayTripName">Summer Trip</span>
+                <span style="cursor: pointer; opacity: 0.5;" onclick="editTripName()">✎</span>
+            </div>
+            <span style="cursor: pointer; opacity: 0.5;" onclick="deleteCurrentTrip()">🗑️</span>
+        </div>
+
+        <div class="trip-stats" onclick="editTripDuration()" title="Edit Duration">
+            <span class="stat-item">📅 <span id="statDays">0</span> Days</span>
+            <span class="stat-item">🔥 <span id="statBurn" class="stat-highlight">$0.00</span> / day</span>
+        </div>
+
+        <div class="gauge-wrapper">
+            <svg class="gauge-container-svg" viewBox="0 0 100 50">
+                <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" />
+                <path class="gauge-ghost" id="ghostPath" d="M 10 50 A 40 40 0 0 1 90 50" stroke-dasharray="0, 126" />
+                <path class="gauge-fill" id="mainPath" d="M 10 50 A 40 40 0 0 1 90 50" stroke-dasharray="0, 126" />
+            </svg>
+            <div class="gauge-text-overlay">
+                <div class="gauge-percent" id="bigPercent">0%</div>
+                <div class="gauge-subtext" id="moneyText">$0.00 / $0.00</div>
+            </div>
+        </div>
+        <div style="text-align: center; font-size: 0.8rem; color: var(--sub-text); margin-bottom: 20px;" id="statusMsg">Safe Zone</div>
+
+        <div class="input-group" id="inputArea">
+            <label id="inputLabel">Add Expense</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <select id="newExpenseCategory" style="flex: 1.5;">
+                    <option value="✈️ Flight">✈️ Flight</option>
+                    <option value="🏨 Hotel">🏨 Hotel</option>
+                    <option value="🍽️ Food">🍽️ Food</option>
+                    <option value="🚕 Transport">🚕 Transport</option>
+                    <option value="🛍️ Shop">🛍️ Shop</option>
+                    <option value="🎟️ Fun">🎟️ Fun</option>
+                    <option value="✨ Misc">✨ Misc</option>
+                </select>
+                <input type="number" id="newExpenseAmount" placeholder="$ Amount" style="flex: 1;" oninput="updateGhost()">
+            </div>
+            <input type="text" id="newExpenseNote" placeholder="Optional description (e.g. Lunch)" style="width: 100%;">
+            
+            <div id="timeCostDisplay" style="font-size: 0.85rem; color: var(--sub-text); margin-top: 5px; min-height: 1.2em; text-align: right;"></div>
+        </div>
+
+        <button class="btn-primary" id="actionBtn" onclick="handleExpenseAction()">Add Expense</button>
+        <div class="cancel-edit" id="cancelEditBtn" onclick="cancelEditMode()">Cancel Edit</div>
+
+        <ul class="expense-list" id="expenseList"></ul>
+
+        <div class="btn-group">
+            <button class="btn-secondary" onclick="exportData()">💾 Save</button>
+            <button class="btn-secondary" onclick="resetData()" style="color: var(--red); border-color: var(--red);">Reset</button>
+        </div>
+    </div>
+    
+    <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="importData(this)">
+</div>
+
+<script>
+    // --- STATE ---
+    let data = {
+        salary: 0,
+        percent: 0,
+        totalBudget: 0,
+        currentTripId: 1,
+        trips: [ { id: 1, name: "Summer Trip", days: 7, expenses: [] } ]
+    };
+    
+    // Tracks if we are editing an existing item (null = adding new)
+    let editingId = null; 
+
+    const WORK_DAYS = 260; 
+    const ARC_LENGTH = 126;
+
+    // --- INIT ---
+    window.onload = function() {
+        // Load Dark Mode Preference
+        if(localStorage.getItem('vb_dark_mode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        const saved = localStorage.getItem('vacationBudget_v5');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.trips) {
+                    data = parsed;
+                    if(data.salary > 0) showDashboard();
+                }
+            } catch (e) { console.error("Save corrupted"); }
+        }
+    };
+
+    function startPlanning() {
+        const salary = parseFloat(document.getElementById('salaryInput').value);
+        const percent = parseFloat(document.getElementById('percentInput').value);
+        if (!salary || !percent) return alert("Please fill in both fields");
+
+        data.salary = salary;
+        data.percent = percent;
+        data.totalBudget = salary * (percent / 100);
+        saveLocal();
+        showDashboard();
+    }
+
+    function showDashboard() {
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('dashboard-section').style.display = 'block';
+        updateUI();
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('vb_dark_mode', document.body.classList.contains('dark-mode'));
+    }
+
+    // --- CORE LOGIC ---
+    function getAllExpensesTotal() {
+        let total = 0;
+        data.trips.forEach(trip => {
+            trip.expenses.forEach(e => total += e.amount);
+        });
+        return total;
+    }
+
+    function getCurrentTrip() {
+        let trip = data.trips.find(t => t.id == data.currentTripId);
+        if (!trip && data.trips.length > 0) {
+            trip = data.trips[0];
+            data.currentTripId = trip.id;
+        }
+        return trip;
+    }
+
+    // --- INPUT & EDITING LOGIC ---
+    function handleExpenseAction() {
+        if(editingId) {
+            updateExistingExpense();
+        } else {
+            addNewExpense();
+        }
+    }
+
+    function addNewExpense() {
+        const amount = parseFloat(document.getElementById('newExpenseAmount').value);
+        const category = document.getElementById('newExpenseCategory').value;
+        const note = document.getElementById('newExpenseNote').value;
+        
+        if (!amount) return;
+
+        const trip = getCurrentTrip();
+        trip.expenses.unshift({ // Add to top of list
+            id: Date.now(), 
+            name: category, 
+            amount: amount,
+            note: note 
+        });
+
+        clearInputs();
+        saveLocal();
+        updateUI();
+    }
+
+    function triggerEditMode(id) {
+        const trip = getCurrentTrip();
+        const item = trip.expenses.find(e => e.id === id);
+        if(!item) return;
+
+        // Populate fields
+        document.getElementById('newExpenseCategory').value = item.name;
+        document.getElementById('newExpenseAmount').value = item.amount;
+        document.getElementById('newExpenseNote').value = item.note || "";
+        
+        // Update State
+        editingId = id;
+        
+        // Update Visuals
+        const btn = document.getElementById('actionBtn');
+        btn.innerText = "Update Expense";
+        btn.classList.add('update-mode');
+        document.getElementById('cancelEditBtn').style.display = 'block';
+        document.getElementById('inputLabel').innerText = "Editing Expense...";
+        
+        // Scroll to top to show inputs
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Re-render list to show active edit state
+        renderList(); 
+        updateGhost(); // Update ghost gauge for the current input value
+    }
+
+    function updateExistingExpense() {
+        const trip = getCurrentTrip();
+        const item = trip.expenses.find(e => e.id === editingId);
+        
+        const amount = parseFloat(document.getElementById('newExpenseAmount').value);
+        const category = document.getElementById('newExpenseCategory').value;
+        const note = document.getElementById('newExpenseNote').value;
+
+        if(!item || !amount) return;
+
+        item.amount = amount;
+        item.name = category;
+        item.note = note;
+
+        cancelEditMode(); // Resets state
+        saveLocal();
+        updateUI();
+    }
+
+    function cancelEditMode() {
+        editingId = null;
+        clearInputs();
+        
+        const btn = document.getElementById('actionBtn');
+        btn.innerText = "Add Expense";
+        btn.classList.remove('update-mode');
+        document.getElementById('cancelEditBtn').style.display = 'none';
+        document.getElementById('inputLabel').innerText = "Add Expense";
+        renderList();
+    }
+
+    function clearInputs() {
+        document.getElementById('newExpenseAmount').value = '';
+        document.getElementById('newExpenseNote').value = '';
+        document.getElementById('timeCostDisplay').innerHTML = '';
+        document.getElementById('ghostPath').style.strokeDasharray = `0, ${ARC_LENGTH}`;
+    }
+
+    // --- VISUALS ---
+    function updateGhost() {
+        const inputVal = parseFloat(document.getElementById('newExpenseAmount').value) || 0;
+        
+        // Calculate projected total (Current Total - Old Amount if editing + New Amount)
+        let currentTotal = getAllExpensesTotal();
+        if(editingId) {
+             const trip = getCurrentTrip();
+             const item = trip.expenses.find(e => e.id === editingId);
+             if(item) currentTotal -= item.amount;
+        }
+
+        const projectedTotal = currentTotal + inputVal;
+        
+        // Time cost logic
+        const dailyRate = data.salary / WORK_DAYS;
+        const daysCost = (inputVal / dailyRate).toFixed(1);
+        const timeDisplay = document.getElementById('timeCostDisplay');
+        
+        if (inputVal > 0) {
+            timeDisplay.innerHTML = `Costs <strong>${daysCost} days</strong> of work`;
+        } else {
+            timeDisplay.innerHTML = '';
+        }
+
+        // Gauge Logic
+        const ghostPath = document.getElementById('ghostPath');
+        const projectedPct = Math.min((projectedTotal / data.totalBudget), 1);
+        const dashVal = projectedPct * ARC_LENGTH;
+        ghostPath.style.strokeDasharray = `${dashVal}, ${ARC_LENGTH}`;
+
+        const pct = (projectedTotal / data.totalBudget) * 100;
+        let color = 'var(--green)';
+        if (pct >= 50) color = 'var(--orange)';
+        if (pct >= 80) color = 'var(--red)';
+        if (pct > 100) color = 'var(--dark-red)';
+        ghostPath.style.stroke = color;
+    }
+
+    function updateUI() {
+        renderTabs(); 
+        
+        const totalSpent = getAllExpensesTotal();
+        const pct = (totalSpent / data.totalBudget) * 100;
+        
+        const mainPath = document.getElementById('mainPath');
+        const ghostPath = document.getElementById('ghostPath');
+        const mainDash = Math.min((pct / 100), 1) * ARC_LENGTH;
+        
+        mainPath.style.strokeDasharray = `${mainDash}, ${ARC_LENGTH}`;
+        
+        // Only reset ghost if not currently typing/editing
+        if(document.getElementById('newExpenseAmount').value === "") {
+             ghostPath.style.strokeDasharray = `${mainDash}, ${ARC_LENGTH}`;
+        }
+
+        const bigPct = document.getElementById('bigPercent');
+        const statusMsg = document.getElementById('statusMsg');
+        const moneyText = document.getElementById('moneyText');
+        
+        bigPct.innerText = Math.round(pct) + "%";
+        moneyText.innerText = `${formatMoney(totalSpent)} / ${formatMoney(data.totalBudget)}`;
+
+        let color = 'var(--green)';
+        let status = "Safe Zone";
+        if (pct >= 50) { color = 'var(--orange)'; status = "Accumulating"; }
+        if (pct >= 80) { color = 'var(--red)'; status = "Warning: Budget Tight"; }
+        if (pct > 100) { color = 'var(--dark-red)'; status = "OVERBUDGET"; }
+
+        mainPath.style.stroke = color;
+        bigPct.style.color = color;
+        statusMsg.innerText = status;
+
+        renderTripStats();
+        renderList();
+    }
+
+    function renderList() {
+        const list = document.getElementById('expenseList');
+        const trip = getCurrentTrip();
+        if(!trip) return;
+
+        list.innerHTML = trip.expenses.map(e => {
+            const isEditing = (e.id === editingId);
+            const editClass = isEditing ? 'editing' : '';
+            return `
+            <li class="expense-item ${editClass}" onclick="triggerEditMode(${e.id})">
+                <div style="flex:1;">
+                    <span class="expense-name">${e.name}</span>
+                    ${e.note ? `<span class="expense-note">${e.note}</span>` : ''}
+                </div>
+                <div style="display:flex; align-items:center;">
+                    <span style="font-weight:bold;">${formatMoney(e.amount)}</span>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteExpense(${e.id})">&times;</button>
+                </div>
+            </li>
+        `}).join('');
+    }
+
+    function renderTripStats() {
+        const trip = getCurrentTrip();
+        if(!trip) return;
+        document.getElementById('displayTripName').innerText = trip.name;
+        const spent = trip.expenses.reduce((s, i) => s + i.amount, 0);
+        document.getElementById('statDays').innerText = trip.days || 1;
+        document.getElementById('statBurn').innerText = formatMoney(spent / (trip.days || 1));
+    }
+
+    function renderTabs() {
+        const container = document.getElementById('tabsContainer');
+        const html = data.trips.map(t => {
+            const isActive = t.id == data.currentTripId;
+            return `<button class="tab-btn ${isActive ? 'active' : ''}" onclick="switchTrip(${t.id})">${t.name}</button>`;
+        }).join('');
+        const addBtn = `<button class="tab-btn tab-add-btn" onclick="addNewTrip()">+</button>`;
+        container.innerHTML = html + addBtn;
+    }
+
+    // --- ACTIONS ---
+    function switchTrip(id) {
+        if(editingId) cancelEditMode();
+        data.currentTripId = id;
+        saveLocal();
+        updateUI();
+    }
+
+    function addNewTrip() {
+        const name = prompt("Name of new trip:");
+        if (!name) return;
+        const days = prompt("How many days?", "7");
+        data.trips.push({ id: Date.now(), name: name, days: parseInt(days) || 1, expenses: [] });
+        data.currentTripId = data.trips[data.trips.length -1].id;
+        saveLocal();
+        updateUI();
+    }
+
+    function deleteExpense(id) {
+        if(confirm("Delete item?")) {
+            const trip = getCurrentTrip();
+            if(editingId === id) cancelEditMode();
+            trip.expenses = trip.expenses.filter(e => e.id !== id);
+            saveLocal();
+            updateUI();
+        }
+    }
+    
+    function deleteCurrentTrip() {
+        if(data.trips.length <= 1) return alert("Keep at least one trip.");
+        if(confirm(`Delete "${getCurrentTrip().name}"?`)) {
+            data.trips = data.trips.filter(t => t.id !== data.currentTripId);
+            data.currentTripId = data.trips[0].id;
+            saveLocal();
+            updateUI();
+        }
+    }
+
+    function editTripName() {
+        const trip = getCurrentTrip();
+        const newName = prompt("Rename trip:", trip.name);
+        if(newName) { trip.name = newName; saveLocal(); updateUI(); }
+    }
+    
+    function editTripDuration() {
+        const trip = getCurrentTrip();
+        const newDays = parseInt(prompt(`Edit days for "${trip.name}":`, trip.days));
+        if (newDays > 0) { trip.days = newDays; saveLocal(); updateUI(); }
+    }
+
+    // --- SYSTEM ---
+    function saveLocal() { localStorage.setItem('vacationBudget_v5', JSON.stringify(data)); }
+    function resetData() { if(confirm("Wipe all data?")) { localStorage.removeItem('vacationBudget_v5'); location.reload(); } }
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+        const a = document.createElement('a');
+        a.href = dataStr; a.download = "budget_backup.json"; a.click();
+    }
+    function importData(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try { data = JSON.parse(e.target.result); saveLocal(); location.reload(); }
+            catch(err) { alert("Error reading file"); }
+        };
+        reader.readAsText(file);
+    }
+    
+    function formatMoney(num) {
+        return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    }
+</script>
+</body>
+</html>
